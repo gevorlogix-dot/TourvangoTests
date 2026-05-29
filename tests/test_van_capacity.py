@@ -2,13 +2,14 @@
 Tests for multi-van selection and passenger capacity validation.
 
 Business rules:
-  - Single Sprinter van capacity: 8–17 passengers
-  - Passenger count > single van capacity → multi-van selection required
+  - Executive Sprinter Van: 8 seats each (observed from site)
+  - Passenger count > 8 → multi-van selection required
   - Selecting van(s) with insufficient total seats → warning popup appears
-  - Selecting enough vans for the group → no warning, form advances
+    with text "not enough seats" and dismiss button "got it, i'll add more vans"
+  - Keep selecting vans until sum(seats) >= passengers → warning clears
 """
 import pytest
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Browser, Page, expect
 
 BASE_URL = "https://tourvango.testingforproduction.com"
 
@@ -16,32 +17,54 @@ NAME  = "George Test"
 EMAIL = "gevorlogix@gmail.com"
 PHONE = "4387985779"
 
-SINGLE_VAN_MAX   = 12   # max seats on one Sprinter van (observed: Executive Sprinter = 12)
-LARGE_GROUP      = 20   # requires 2 vans (2 × 12 = 24 >= 20)
-BOUNDARY_GROUP   = 12   # exactly fills one Executive Sprinter — no extra van needed
-SMALL_GROUP      = 8    # well within single-van capacity
+SINGLE_VAN_SEATS = 8    # Executive Sprinter Van = 8 seats (observed from site)
+LARGE_GROUP      = 20   # requires 3 vans (3 × 8 = 24 >= 20)
+BOUNDARY_GROUP   = 8    # exactly fills one van — no extra van needed
+SMALL_GROUP      = 4    # well within single-van capacity
 
+# Warning popup uses specific phrasing — these keywords match ONLY the warning,
+# not general page text like "seats 8" or "you need seating for X passengers"
 WARNING_SELECTORS = (
-    "[role='alertdialog'], [role='dialog'], [role='alert'], "
+    "[role='alertdialog'], [role='alert'], "
     "[class*='warning'], [class*='Warning'], "
-    "[class*='error'], [class*='Error'], "
-    "[class*='modal'], [class*='Modal'], "
-    "[class*='popup'], [class*='Popup'], "
-    "[class*='toast'], [class*='Toast'], "
-    "[class*='snackbar'], [class*='Snackbar'], "
-    "[class*='notification'], [class*='Notification']"
+    "[class*='error'], [class*='Error']"
 )
 
 WARNING_KEYWORDS = [
-    "capacity", "seats", "passengers", "not enough", "exceeds",
-    "additional van", "more van", "select more", "van required",
-    "insufficient", "cannot accommodate", "need more", "add another",
+    "not enough seats",
+    "please add",
+    "more seats by selecting",
+    "your selected vans seat",
+    "i'll add more vans",
+    "add more vans",
+    "insufficient",
 ]
 
 VEHICLE_SELECTION_SIGNALS = [
     "vehicle", "van", "sprinter", "mercedes", "select", "available",
     "select your vehicle", "select your vans",
 ]
+
+DISMISS_SEL = (
+    "button:has-text(\"got it, i'll add more vans\"), "
+    "button:has-text('Got it'), button:has-text('Close'), "
+    "button:has-text('OK'), button:has-text('Dismiss'), "
+    "button[aria-label='Close'], [role='alertdialog'] button, "
+    "[role='alert'] button"
+)
+
+
+# ── Function-scoped page fixture ───────────────────────────────────────────────
+# Overrides the session-scoped fixture from conftest.py so each capacity test
+# gets a clean browser context — prevents state (passenger count, /order session)
+# from bleeding between tests.
+
+@pytest.fixture
+def page(browser: Browser):
+    ctx = browser.new_context(viewport={"width": 1280, "height": 800})
+    p = ctx.new_page()
+    yield p
+    ctx.close()
 
 
 # ── Shared helpers ─────────────────────────────────────────────────────────────
@@ -235,13 +258,13 @@ class TestSingleVanInsufficientCapacity:
         if not _on_vehicle_step(page):
             pytest.skip("Vehicle selection step not reached")
 
-        select_btn = page.locator("button:has-text('Select')").first
+        select_btn = page.locator("button:has-text('select van'), button:has-text('Select')").first
         if select_btn.count() == 0 or not select_btn.is_visible():
             pytest.skip("No 'Select' button found on vehicle page")
         select_btn.click()
         page.wait_for_timeout(800)
 
-        confirm = page.locator("button:has-text('Confirm Selection')").first
+        confirm = page.locator("button:has-text('Confirm Selection'), button:has-text('confirm selection')").first
         if confirm.count() == 0 or not confirm.is_visible():
             pytest.skip("'Confirm Selection' button not found")
         confirm.click()
@@ -259,13 +282,13 @@ class TestSingleVanInsufficientCapacity:
         if not _on_vehicle_step(page):
             pytest.skip("Vehicle selection step not reached")
 
-        select_btn = page.locator("button:has-text('Select')").first
+        select_btn = page.locator("button:has-text('select van'), button:has-text('Select')").first
         if select_btn.count() == 0 or not select_btn.is_visible():
             pytest.skip("No 'Select' button found")
         select_btn.click()
         page.wait_for_timeout(800)
 
-        confirm = page.locator("button:has-text('Confirm Selection')").first
+        confirm = page.locator("button:has-text('Confirm Selection'), button:has-text('confirm selection')").first
         if confirm.count() == 0 or not confirm.is_visible():
             pytest.skip("'Confirm Selection' button not found")
         confirm.click()
@@ -294,13 +317,13 @@ class TestSingleVanInsufficientCapacity:
         if not _on_vehicle_step(page):
             pytest.skip("Vehicle selection step not reached")
 
-        select_btn = page.locator("button:has-text('Select')").first
+        select_btn = page.locator("button:has-text('select van'), button:has-text('Select')").first
         if select_btn.count() == 0 or not select_btn.is_visible():
             pytest.skip("No 'Select' button found")
         select_btn.click()
         page.wait_for_timeout(800)
 
-        confirm = page.locator("button:has-text('Confirm Selection')").first
+        confirm = page.locator("button:has-text('Confirm Selection'), button:has-text('confirm selection')").first
         if confirm.count() == 0 or not confirm.is_visible():
             pytest.skip("'Confirm Selection' button not found")
         confirm.click()
@@ -338,13 +361,13 @@ class TestSingleVanInsufficientCapacity:
 
         url_before = page.url
 
-        select_btn = page.locator("button:has-text('Select')").first
+        select_btn = page.locator("button:has-text('select van'), button:has-text('Select')").first
         if select_btn.count() == 0 or not select_btn.is_visible():
             pytest.skip("No 'Select' button found")
         select_btn.click()
         page.wait_for_timeout(800)
 
-        confirm = page.locator("button:has-text('Confirm Selection')").first
+        confirm = page.locator("button:has-text('Confirm Selection'), button:has-text('confirm selection')").first
         if confirm.count() == 0 or not confirm.is_visible():
             pytest.skip("'Confirm Selection' button not found")
         confirm.click()
@@ -372,39 +395,37 @@ def _select_vans_until_sufficient(page: Page, passenger_count: int) -> int:
     after which the warning is gone and the form advances.
     """
     selected = 0
-    for _ in range(10):  # safety cap — no booking needs >10 vans
-        available = page.locator("button:has-text('Select')")
+    for _ in range(8):  # 8 vans × 8 seats = 64 seats, more than enough for any booking
+        # "select van" button (site uses lowercase) — has-text is partial + case-insensitive
+        available = page.locator("button:has-text('select van'), button:has-text('Select')")
         if available.count() == 0:
             break
         available.first.click()
-        page.wait_for_timeout(600)
+        page.wait_for_timeout(800)
         selected += 1
 
-        confirm = page.locator("button:has-text('Confirm Selection')").first
+        confirm = page.locator(
+            "button:has-text('Confirm Selection'), button:has-text('confirm selection')"
+        ).first
         if confirm.count() == 0 or not confirm.is_visible():
-            break
+            # Confirm may appear only once enough vans are selected — keep adding
+            continue
 
         confirm.click()
-        page.wait_for_timeout(1200)
+        page.wait_for_timeout(1500)
 
         if not _has_warning(page):
             # Warning gone — total seats now covers the group
             break
 
-        # Warning still present — dismiss it if possible and pick another van
-        close = page.locator(
-            "button:has-text(\"got it, i'll add more vans\"), "
-            "button:has-text('Close'), button:has-text('OK'), "
-            "button:has-text('Got it'), button:has-text('Dismiss'), "
-            "button[aria-label='Close'], [class*='close' i] button, "
-            "[role='dialog'] button"
-        ).first
+        # Warning still present — dismiss and pick another van
+        close = page.locator(DISMISS_SEL).first
         if close.count() > 0 and close.is_visible():
             close.click()
-            page.wait_for_timeout(500)
+            page.wait_for_timeout(600)
         else:
             page.keyboard.press("Escape")
-            page.wait_for_timeout(500)
+            page.wait_for_timeout(600)
 
     return selected
 
@@ -425,7 +446,7 @@ class TestMultiVanSelectionSatisfiesCapacity:
         if not _on_vehicle_step(page):
             pytest.skip("Vehicle selection step not reached")
 
-        if page.locator("button:has-text('Select')").count() < 1:
+        if page.locator("button:has-text('select van'), button:has-text('Select')").count() < 1:
             pytest.skip("No 'Select' buttons found on vehicle page")
 
         vans_selected = _select_vans_until_sufficient(page, LARGE_GROUP)
@@ -442,7 +463,7 @@ class TestMultiVanSelectionSatisfiesCapacity:
         if not _on_vehicle_step(page):
             pytest.skip("Vehicle selection step not reached")
 
-        if page.locator("button:has-text('Select')").count() < 1:
+        if page.locator("button:has-text('select van'), button:has-text('Select')").count() < 1:
             pytest.skip("No 'Select' buttons found on vehicle page")
 
         url_step2   = page.url
@@ -467,7 +488,7 @@ class TestMultiVanSelectionSatisfiesCapacity:
         if not _on_vehicle_step(page):
             pytest.skip("Vehicle selection step not reached")
 
-        all_select = page.locator("button:has-text('Select')")
+        all_select = page.locator("button:has-text('select van'), button:has-text('Select')")
         if all_select.count() < 1:
             pytest.skip("No 'Select' buttons found")
 
@@ -475,7 +496,7 @@ class TestMultiVanSelectionSatisfiesCapacity:
         all_select.first.click()
         page.wait_for_timeout(600)
 
-        confirm = page.locator("button:has-text('Confirm Selection')").first
+        confirm = page.locator("button:has-text('Confirm Selection'), button:has-text('confirm selection')").first
         if confirm.count() == 0 or not confirm.is_visible():
             pytest.skip("'Confirm Selection' not found after first selection")
         confirm.click()
@@ -486,12 +507,7 @@ class TestMultiVanSelectionSatisfiesCapacity:
             pytest.skip("One van already covers the group — multi-van path not triggered")
 
         # Warning is showing → more vans must still be selectable
-        close = page.locator(
-            "button:has-text(\"got it, i'll add more vans\"), "
-            "button:has-text('Got it'), button:has-text('Close'), "
-            "button:has-text('OK'), button:has-text('Dismiss'), "
-            "button[aria-label='Close'], [role='dialog'] button"
-        ).first
+        close = page.locator(DISMISS_SEL).first
         if close.count() > 0 and close.is_visible():
             close.click()
             page.wait_for_timeout(500)
@@ -499,7 +515,7 @@ class TestMultiVanSelectionSatisfiesCapacity:
             page.keyboard.press("Escape")
             page.wait_for_timeout(500)
 
-        remaining = page.locator("button:has-text('Select')")
+        remaining = page.locator("button:has-text('select van'), button:has-text('Select')")
         if remaining.count() == 0:
             pytest.xfail(
                 "No additional 'Select' buttons after first van — site may not "
@@ -517,13 +533,13 @@ class TestMultiVanSelectionSatisfiesCapacity:
         if not _on_vehicle_step(page):
             pytest.skip("Vehicle selection step not reached")
 
-        if page.locator("button:has-text('Select')").count() < 1:
+        if page.locator("button:has-text('select van'), button:has-text('Select')").count() < 1:
             pytest.skip("No 'Select' buttons found")
 
         # Trigger warning with first van
-        page.locator("button:has-text('Select')").first.click()
+        page.locator("button:has-text('select van'), button:has-text('Select')").first.click()
         page.wait_for_timeout(600)
-        confirm = page.locator("button:has-text('Confirm Selection')").first
+        confirm = page.locator("button:has-text('Confirm Selection'), button:has-text('confirm selection')").first
         if confirm.count() == 0 or not confirm.is_visible():
             pytest.skip("'Confirm Selection' not found")
         confirm.click()
@@ -531,13 +547,6 @@ class TestMultiVanSelectionSatisfiesCapacity:
 
         if not _has_warning(page):
             pytest.skip("No warning after first van — may already be sufficient")
-
-        DISMISS_SEL = (
-            "button:has-text(\"got it, i'll add more vans\"), "
-            "button:has-text('Got it'), button:has-text('Close'), "
-            "button:has-text('OK'), button:has-text('Dismiss'), "
-            "button[aria-label='Close'], [role='dialog'] button"
-        )
 
         # Warning appeared — dismiss it and iteratively add vans until it clears
         close = page.locator(DISMISS_SEL).first
@@ -551,12 +560,12 @@ class TestMultiVanSelectionSatisfiesCapacity:
         # Keep selecting until warning clears
         cleared = False
         for _ in range(8):
-            available = page.locator("button:has-text('Select')")
+            available = page.locator("button:has-text('select van'), button:has-text('Select')")
             if available.count() == 0:
                 break
             available.first.click()
             page.wait_for_timeout(600)
-            confirm2 = page.locator("button:has-text('Confirm Selection')").first
+            confirm2 = page.locator("button:has-text('Confirm Selection'), button:has-text('confirm selection')").first
             if confirm2.count() > 0 and confirm2.is_visible():
                 confirm2.click()
                 page.wait_for_timeout(1200)
@@ -583,22 +592,23 @@ class TestCapacityBoundaries:
 
     def test_exactly_max_single_van_capacity_no_warning(self, page: Page):
         """
-        17 passengers with a 17-seat van — one van should be enough, no warning.
-        If the first available van shown has fewer than 17 seats, a warning is
-        legitimate (the site has mixed-capacity vans). In that case we xfail
-        rather than fail, since the test depends on which van is presented first.
+        8 passengers (= one full van) — one van should be enough, no warning.
         """
         _fill_step1_and_advance(page, BOUNDARY_GROUP)
         if not _on_vehicle_step(page):
             pytest.skip("Vehicle selection step not reached")
 
-        select_btn = page.locator("button:has-text('Select')").first
+        select_btn = page.locator(
+            "button:has-text('select van'), button:has-text('Select')"
+        ).first
         if select_btn.count() == 0 or not select_btn.is_visible():
-            pytest.skip("No 'Select' button found")
+            pytest.skip("No 'select van' button found")
         select_btn.click()
         page.wait_for_timeout(800)
 
-        confirm = page.locator("button:has-text('Confirm Selection')").first
+        confirm = page.locator(
+            "button:has-text('Confirm Selection'), button:has-text('confirm selection')"
+        ).first
         if confirm.count() == 0 or not confirm.is_visible():
             pytest.skip("'Confirm Selection' button not found")
         confirm.click()
@@ -608,26 +618,28 @@ class TestCapacityBoundaries:
         if _has_warning(page):
             pytest.xfail(
                 f"Warning appeared for {BOUNDARY_GROUP} passengers with one van — "
-                "the first available van likely has fewer than 17 seats. "
-                "This is correct behavior for a smaller van; test outcome depends "
-                "on which van the site presents first."
+                "van shown may have fewer than 8 seats."
             )
 
     def test_one_over_max_single_van_capacity_warns(self, page: Page):
-        """18 passengers (one over single-van max) — one van must trigger a warning."""
-        over_max = SINGLE_VAN_MAX + 1
+        """9 passengers (one over a single 8-seat van) — one van must trigger a warning."""
+        over_max = SINGLE_VAN_SEATS + 1
 
         _fill_step1_and_advance(page, over_max)
         if not _on_vehicle_step(page):
             pytest.skip("Vehicle selection step not reached")
 
-        select_btn = page.locator("button:has-text('Select')").first
+        select_btn = page.locator(
+            "button:has-text('select van'), button:has-text('Select')"
+        ).first
         if select_btn.count() == 0 or not select_btn.is_visible():
-            pytest.skip("No 'Select' button found")
+            pytest.skip("No 'select van' button found")
         select_btn.click()
         page.wait_for_timeout(800)
 
-        confirm = page.locator("button:has-text('Confirm Selection')").first
+        confirm = page.locator(
+            "button:has-text('Confirm Selection'), button:has-text('confirm selection')"
+        ).first
         if confirm.count() == 0 or not confirm.is_visible():
             pytest.skip("'Confirm Selection' button not found")
         confirm.click()
@@ -640,18 +652,22 @@ class TestCapacityBoundaries:
             )
 
     def test_small_group_happy_path_no_warning(self, page: Page):
-        """8 passengers selecting one van — baseline happy path, no warning."""
+        """4 passengers selecting one van — baseline happy path, no warning."""
         _fill_step1_and_advance(page, SMALL_GROUP)
         if not _on_vehicle_step(page):
             pytest.skip("Vehicle selection step not reached")
 
-        select_btn = page.locator("button:has-text('Select')").first
+        select_btn = page.locator(
+            "button:has-text('select van'), button:has-text('Select')"
+        ).first
         if select_btn.count() == 0 or not select_btn.is_visible():
-            pytest.skip("No 'Select' button found")
+            pytest.skip("No 'select van' button found")
         select_btn.click()
         page.wait_for_timeout(800)
 
-        confirm = page.locator("button:has-text('Confirm Selection')").first
+        confirm = page.locator(
+            "button:has-text('Confirm Selection'), button:has-text('confirm selection')"
+        ).first
         if confirm.count() == 0 or not confirm.is_visible():
             pytest.skip("'Confirm Selection' button not found")
         confirm.click()
