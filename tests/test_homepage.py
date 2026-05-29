@@ -55,8 +55,8 @@ def test_homepage_phone_number_visible(page: Page):
 def test_homepage_booking_form_visible(page: Page):
     page.goto(BASE_URL)
     page.wait_for_load_state("networkidle")
-    # The main booking form should have a Next/Submit button
-    next_btn = page.locator("button:has-text('Next'), input[type='submit'][value*='Next']")
+    # The main booking form should have the Find Available Vans submit button
+    next_btn = page.locator("button:has-text('Find Available Vans'), button[type='submit']")
     expect(next_btn.first).to_be_visible()
 
 

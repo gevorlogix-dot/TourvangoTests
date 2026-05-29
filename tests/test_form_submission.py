@@ -160,38 +160,45 @@ def test_booking_form_step1_next_advances(page: Page):
     page.goto(BASE_URL)
     page.wait_for_load_state("networkidle")
 
-    # Pick-up location
-    pickup = page.locator(
-        "input[name*='pickup' i], input[placeholder*='pick' i], "
-        "input[placeholder*='from' i], input[name*='from' i]"
-    ).first
+    # Pick-up location (MUI Autocomplete — no name attr, use placeholder)
+    pickup = page.locator("input[placeholder='Pick-up Location']").first
     if pickup.count() > 0 and pickup.is_visible():
-        pickup.fill("Los Angeles, CA")
-        # Dismiss autocomplete if it appears
+        pickup.click()
+        page.wait_for_timeout(300)
+        pickup.press_sequentially("Los Angeles", delay=60)
+        page.wait_for_timeout(1000)
+        option = page.locator("[role='option']").first
+        if option.count() > 0 and option.is_visible():
+            option.click()
+        else:
+            page.keyboard.press("Escape")
         page.wait_for_timeout(400)
-        page.keyboard.press("Escape")
 
     # Drop-off location
-    dropoff = page.locator(
-        "input[name*='dropoff' i], input[placeholder*='drop' i], "
-        "input[placeholder*='to' i], input[name*='to' i]"
-    ).first
+    dropoff = page.locator("input[placeholder='Drop-off Location']").first
     if dropoff.count() > 0 and dropoff.is_visible():
-        dropoff.fill("Santa Monica, CA")
+        dropoff.click()
+        page.wait_for_timeout(300)
+        dropoff.press_sequentially("Santa Monica", delay=60)
+        page.wait_for_timeout(1000)
+        option = page.locator("[role='option']").first
+        if option.count() > 0 and option.is_visible():
+            option.click()
+        else:
+            page.keyboard.press("Escape")
         page.wait_for_timeout(400)
-        page.keyboard.press("Escape")
 
     body_before = page.locator("body").inner_text()
 
-    next_btn = page.locator("button:has-text('Next'), input[type='submit']").first
+    next_btn = page.locator("button:has-text('Find Available Vans'), button[type='submit']").first
     expect(next_btn).to_be_visible()
     next_btn.click()
     page.wait_for_load_state("networkidle")
 
     # Either page content changed or a step indicator advanced
     body_after = page.locator("body").inner_text()
-    assert body_after != body_before or "/vehicles" in page.url, \
-        "Clicking Next on booking form Step 1 did not advance the form"
+    assert body_after != body_before or "/vehicles" in page.url or "/order" in page.url, \
+        "Clicking Find Available Vans on booking form Step 1 did not advance the form"
 
 
 def test_booking_form_name_step_fill_and_next(page: Page):
@@ -217,7 +224,7 @@ def test_booking_form_name_step_fill_and_next(page: Page):
     if email_field.count() > 0 and email_field.is_visible():
         email_field.fill(EMAIL)
 
-    next_btn = page.locator("button:has-text('Next'), input[type='submit']").first
+    next_btn = page.locator("button:has-text('Find Available Vans'), button[type='submit']").first
     expect(next_btn).to_be_visible()
     next_btn.click()
     page.wait_for_load_state("networkidle")
@@ -251,25 +258,52 @@ def test_booking_form_complete_submission_shows_confirmation(page: Page):
             except Exception:
                 pass
 
-    # Step 1 — trip type + locations
-    try_click("label:has-text('Round'), input[value*='round' i]")
-    try_fill("input[name*='pickup' i], input[placeholder*='pick' i]", "Los Angeles, CA")
-    page.wait_for_timeout(400)
-    page.keyboard.press("Escape")
-    try_fill("input[name*='dropoff' i], input[placeholder*='drop' i]", "Santa Monica, CA")
-    page.wait_for_timeout(400)
-    page.keyboard.press("Escape")
+    # Step 1 — trip type + locations (use exact new selectors)
+    try_click("button:has-text('Round trip')")
+    # Pick-up location via autocomplete
+    pickup = page.locator("input[placeholder='Pick-up Location']").first
+    if pickup.count() > 0 and pickup.is_visible():
+        try:
+            pickup.click()
+            page.wait_for_timeout(300)
+            pickup.press_sequentially("Los Angeles", delay=60)
+            page.wait_for_timeout(1000)
+            opt = page.locator("[role='option']").first
+            if opt.count() > 0 and opt.is_visible():
+                opt.click()
+            else:
+                page.keyboard.press("Escape")
+            page.wait_for_timeout(400)
+        except Exception:
+            pass
+    # Drop-off location via autocomplete
+    dropoff = page.locator("input[placeholder='Drop-off Location']").first
+    if dropoff.count() > 0 and dropoff.is_visible():
+        try:
+            dropoff.click()
+            page.wait_for_timeout(300)
+            dropoff.press_sequentially("Santa Monica", delay=60)
+            page.wait_for_timeout(1000)
+            opt = page.locator("[role='option']").first
+            if opt.count() > 0 and opt.is_visible():
+                opt.click()
+            else:
+                page.keyboard.press("Escape")
+            page.wait_for_timeout(400)
+        except Exception:
+            pass
 
-    # Contact fields (may be on step 1 or step 2)
-    try_fill("input[name*='name' i], input[placeholder*='name' i]", NAME)
-    try_fill("input[type='email']", EMAIL)
-    try_fill("input[type='tel'], input[name*='phone' i]", PHONE)
+    # Contact fields
+    try_fill("input[name='client_info.full_name']", NAME)
+    try_fill("input[name='client_info.email']", EMAIL)
+    try_fill("input[placeholder='Phone Number']", PHONE)
+    try_fill("input[name='passenger_count']", "4")
 
-    # Click Next — possibly multiple steps
+    # Click Find Available Vans — possibly multiple steps after
     for _ in range(4):
         next_btn = page.locator(
-            "button:has-text('Next'), button:has-text('Submit'), "
-            "button:has-text('Book'), input[type='submit']"
+            "button:has-text('Find Available Vans'), button:has-text('Submit a Quote'), "
+            "button:has-text('Submit Quote'), button:has-text('Book'), button[type='submit']"
         ).first
         if next_btn.count() == 0 or not next_btn.is_visible():
             break

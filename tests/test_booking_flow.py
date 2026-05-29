@@ -37,7 +37,7 @@ def test_step1_form_visible_on_homepage(page: Page):
     page.wait_for_load_state("networkidle")
     form = page.locator("form").first
     expect(form).to_be_visible()
-    next_btn = page.locator("button:has-text('Next'), input[type='submit']").first
+    next_btn = page.locator("button:has-text('Find Available Vans'), button[type='submit']").first
     expect(next_btn).to_be_visible()
 
 
@@ -89,7 +89,7 @@ def test_step1_next_navigates_to_step2(page: Page):
     body_step1 = _body(page)
     url_step1  = page.url
 
-    next_btn = page.locator("button:has-text('Next'), input[type='submit']").first
+    next_btn = page.locator("button:has-text('Find Available Vans'), button[type='submit']").first
     expect(next_btn).to_be_visible()
     expect(next_btn).to_be_enabled()
     next_btn.click()
@@ -135,7 +135,7 @@ def test_step2_shows_vehicle_or_contact_form(page: Page):
             except Exception:
                 pass
 
-    page.locator("button:has-text('Next'), input[type='submit']").first.click()
+    page.locator("button:has-text('Find Available Vans'), button[type='submit']").first.click()
     page.wait_for_load_state("networkidle")
     page.wait_for_timeout(1000)
 
@@ -172,7 +172,7 @@ def test_step2_to_step3_progression(page: Page):
                 pass
 
     # Step 1 → 2
-    page.locator("button:has-text('Next'), input[type='submit']").first.click()
+    page.locator("button:has-text('Find Available Vans'), button[type='submit']").first.click()
     page.wait_for_load_state("networkidle")
     page.wait_for_timeout(800)
 
@@ -195,8 +195,8 @@ def test_step2_to_step3_progression(page: Page):
 
     # Step 2 → 3
     next2 = page.locator(
-        "button:has-text('Next'), button:has-text('Continue'), "
-        "button:has-text('Proceed'), input[type='submit']"
+        "button:has-text('Confirm Selection'), button:has-text('Continue'), "
+        "button:has-text('Proceed'), button[type='submit']"
     ).first
     if next2.count() == 0 or not next2.is_visible():
         pytest.skip("No Next button found on Step 2 — vehicle selection may be required")
@@ -265,9 +265,8 @@ def test_full_booking_flow_shows_confirmation(page: Page):
 
     def pick_calendar_date(input_name: str):
         """
-        Open the MUI DatePicker calendar by clicking the readOnly input field,
-        then click the first available (non-disabled) day cell.
-        The calendar button is disabled but clicking the input itself opens the picker.
+        Open the MUI DateTimePicker, pick a day 3+ days in the future (avoids passed
+        time errors for today), select last available hour + first minute, then close.
         """
         try:
             date_input = page.locator(f"input[name='{input_name}']").first
@@ -275,13 +274,44 @@ def test_full_booking_flow_shows_confirmation(page: Page):
                 return
             date_input.click()
             page.wait_for_timeout(1200)
-            # First enabled MuiPickersDay button
-            day = page.locator(
-                "button[class*='MuiPickersDay']:not(.Mui-disabled)"
-            ).first
-            if day.count() > 0 and day.is_visible():
-                day.click()
-                page.wait_for_timeout(600)
+            # Pick a day clearly in the future (skip today — index 3+)
+            days = page.locator("button[class*='MuiPickersDay']:not(.Mui-disabled)")
+            pick_idx = min(3, max(0, days.count() - 1))
+            if days.count() > 0 and days.nth(pick_idx).is_visible():
+                days.nth(pick_idx).click()
+                page.wait_for_timeout(700)
+            # Time picker auto-opens — pick last available hour + first minute
+            hours_box = page.locator(
+                "[role='listbox'][aria-label*='hours' i], "
+                "[role='listbox'][aria-label*='Select hours' i]"
+            )
+            if hours_box.count() > 0:
+                hour_opts = hours_box.first.locator("[role='option']")
+                if hour_opts.count() > 0:
+                    hour_opts.last.click()
+                    page.wait_for_timeout(300)
+            mins_box = page.locator(
+                "[role='listbox'][aria-label*='minutes' i], "
+                "[role='listbox'][aria-label*='Select minutes' i]"
+            )
+            if mins_box.count() > 0:
+                min_opts = mins_box.first.locator("[role='option']")
+                if min_opts.count() > 0:
+                    min_opts.first.click()
+                    page.wait_for_timeout(300)
+            # Commit: Accept/OK button if present, otherwise Tab out to commit value
+            accept_btn = page.locator(
+                "button:has-text('OK'), button:has-text('Accept'), "
+                "button[aria-label='Accept time'], button[aria-label='OK']"
+            )
+            if accept_btn.count() > 0 and accept_btn.first.is_visible():
+                accept_btn.first.click()
+                page.wait_for_timeout(400)
+            else:
+                page.keyboard.press("Tab")
+                page.wait_for_timeout(300)
+            page.keyboard.press("Escape")
+            page.wait_for_timeout(600)
         except Exception:
             pass
 
@@ -295,6 +325,38 @@ def test_full_booking_flow_shows_confirmation(page: Page):
         autocomplete_fill("input[placeholder='Drop-off Location']", "Santa Monica")
         pick_calendar_date("locations.0.date")
         pick_calendar_date("locations.0.dropoff_date")
+
+        # Add an intermediate stop along the way
+        add_stop = page.locator("button:has-text('Add a stop along the way')").first
+        if add_stop.count() > 0 and add_stop.is_visible():
+            try:
+                add_stop.wait_for(state="enabled", timeout=3000)
+                add_stop.click()
+                page.wait_for_timeout(700)
+                # Fill the new intermediate stop (now appears as nth(1) location row)
+                autocomplete_fill(
+                    "input[placeholder='Pick-up Location']:nth-of-type(2), "
+                    "input[placeholder='Pick-up Location']",
+                    "Burbank"
+                )
+                # Use nth(1) directly for the new row's drop-off
+                dropoff_nth1 = page.locator("input[placeholder='Drop-off Location']").nth(1)
+                if dropoff_nth1.count() > 0 and dropoff_nth1.is_visible():
+                    dropoff_nth1.click()
+                    page.wait_for_timeout(400)
+                    page.keyboard.type("Pasadena", delay=80)
+                    page.wait_for_timeout(1800)
+                    opt = page.locator("[role='option']").first
+                    if opt.count() > 0 and opt.is_visible():
+                        opt.click()
+                    else:
+                        page.keyboard.press("Tab")
+                    page.wait_for_timeout(500)
+                pick_calendar_date("locations.1.date")
+                pick_calendar_date("locations.1.dropoff_date")
+            except Exception:
+                pass
+
         page.wait_for_timeout(400)
 
     # ── Step 1A: Fill homepage booking widget and click Next ─────────────────
@@ -317,7 +379,7 @@ def test_full_booking_flow_shows_confirmation(page: Page):
     # (data doesn't carry over), fill and submit it again.
     if not _has_any(_body(page), ["select your vehicle", "select your vans", "8 seats", "seats 8"]):
         fill_booking_form()
-        submit2 = page.locator("button[type='submit'], button:has-text('Next')").first
+        submit2 = page.locator("button[type='submit'], button:has-text('Find Available Vans')").first
         if submit2.count() > 0 and submit2.is_visible() and submit2.is_enabled():
             submit2.click()
             try:

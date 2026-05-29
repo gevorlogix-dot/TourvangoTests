@@ -168,11 +168,11 @@ def test_contact_form_fields_clearable(page: Page):
 # ── Booking form validation ───────────────────────────────────────────────────
 
 def test_booking_form_next_without_required_fields(page: Page):
-    """Clicking Next on a blank booking form should not silently proceed."""
+    """Clicking Find Available Vans on a blank booking form should not silently proceed."""
     page.goto(BASE_URL)
     page.wait_for_load_state("networkidle")
-    # Don't fill anything — click Next
-    next_btn = page.locator("button:has-text('Next'), input[type='submit']").first
+    # Don't fill anything — click submit
+    next_btn = page.locator("button:has-text('Find Available Vans'), button[type='submit']").first
     next_btn.click()
     page.wait_for_timeout(1000)
 
@@ -254,8 +254,8 @@ def test_booking_form_date_field_present(page: Page):
     page.wait_for_load_state("networkidle")
 
     date_field = page.locator(
-        "input[type='date'], input[name*='date' i], input[placeholder*='date' i], "
-        "input[placeholder*='mm/dd' i], [class*='datepicker'] input"
+        "input[type='date'], input[name*='date' i], input[placeholder*='Date' i], "
+        "input[placeholder*='Time' i], input[placeholder*='mm/dd' i], [class*='datepicker'] input"
     ).first
     assert date_field.count() > 0 or page.locator(
         "input[type='date'], input[name*='date' i]"
@@ -268,8 +268,8 @@ def test_booking_form_pickup_date_clickable(page: Page):
     page.wait_for_load_state("networkidle")
 
     date_field = page.locator(
-        "input[type='date'], input[name*='date' i], input[placeholder*='date' i], "
-        "input[placeholder*='Date' i], input[placeholder*='mm/dd' i]"
+        "input[type='date'], input[name*='date' i], input[placeholder*='Date' i], "
+        "input[placeholder*='Time' i], input[placeholder*='mm/dd' i]"
     ).first
     if date_field.count() == 0:
         pytest.skip("No date input found in booking form")

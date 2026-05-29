@@ -62,7 +62,7 @@ def test_fleet_page_navigation_intact(page: Page):
 def test_fleet_booking_form_next_button(page: Page):
     page.goto(f"{BASE_URL}/vehicles")
     page.wait_for_load_state("networkidle")
-    next_btn = page.locator("button:has-text('Next'), input[type='submit']").first
+    next_btn = page.locator("button:has-text('Find Available Vans'), button[type='submit']").first
     expect(next_btn).to_be_visible()
 
 
