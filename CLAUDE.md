@@ -44,6 +44,9 @@ python -m pytest tests/test_form_submission.py::test_contact_form_submission_sho
 | `test_accessibility.py` | lang attr, form labels, button names, ARIA landmarks, tab order |
 | `test_form_validation.py` | HTML5 validation, email/phone types, required fields, clearing |
 | `test_links.py` | Internal links, tel: links (area 818), social links, HTTPS, CTAs |
+| `test_booking_flow.py` | Step 1→2→3 progression, vehicle selection, full flow confirmation |
+| `test_round_trip_booking.py` | Round trip TC-01–TC-13: toggle, return leg, add stops, date pickers |
+| `test_van_capacity.py` | Multi-van selection, capacity warning, boundary cases (8/9/20 pax) |
 
 ## Key constants (conftest.py)
 ```python
@@ -56,12 +59,16 @@ PHONE     = "4387985779"   # auto-formatted to (438) 798-5779 by the site
 ## Architecture
 - **Session-scoped `page` fixture** in `conftest.py` — all tests reuse **one browser tab**, no new windows per test.
 - `test_responsive.py` explicitly creates its own `browser.new_context()` for mobile/tablet viewports — those tests open separate contexts intentionally.
+- `test_van_capacity.py` defines a **function-scoped `page` fixture** (overrides session fixture) — each capacity test gets a clean context to prevent `/order` session state bleeding between tests.
 
 ## Known site issues (xfail / advisory)
 | Test | Issue |
 |---|---|
 | `test_social_links_have_noopener` | Social links missing `rel="noopener"` — security advisory |
 | `test_contact_form_empty_submit_shows_validation_not_success` | Site accepts blank submissions (no client-side validation) — marked xfail if triggered |
+| `test_homepage_has_og_image` | `og:image` may be a relative URL — marked xfail if not absolute |
+| `test_page_has_title` (SEO) | Title > 70 chars on any page — marked xfail as SEO advisory, not a functional bug |
+| `test_warning_popup_is_visible_element` | Capacity warning popup may not yet be implemented — marked xfail |
 
 ## Business info (for assertions)
 - Phone: **818-566-0005** (area code 818)

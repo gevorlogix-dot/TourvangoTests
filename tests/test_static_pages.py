@@ -8,6 +8,7 @@ BASE_URL = "https://tourvango.testingforproduction.com"
 
 def test_about_page_loads(page: Page):
     page.goto(f"{BASE_URL}/about-us")
+    page.wait_for_load_state("networkidle")
     expect(page.locator("body")).to_be_visible()
 
 
@@ -30,6 +31,7 @@ def test_about_page_mentions_company(page: Page):
 
 def test_reviews_page_loads(page: Page):
     page.goto(f"{BASE_URL}/reviews")
+    page.wait_for_load_state("networkidle")
     expect(page.locator("body")).to_be_visible()
 
 
@@ -45,6 +47,7 @@ def test_reviews_page_has_rating_content(page: Page):
 
 def test_blog_page_loads(page: Page):
     page.goto(f"{BASE_URL}/blogs/category/all")
+    page.wait_for_load_state("networkidle")
     expect(page.locator("body")).to_be_visible()
 
 
@@ -59,6 +62,7 @@ def test_blog_page_has_posts(page: Page):
 
 def test_rental_policy_page_loads(page: Page):
     page.goto(f"{BASE_URL}/policy/rental-policies")
+    page.wait_for_load_state("networkidle")
     expect(page.locator("body")).to_be_visible()
 
 
@@ -74,6 +78,7 @@ def test_rental_policy_has_content(page: Page):
 
 def test_privacy_policy_page_loads(page: Page):
     page.goto(f"{BASE_URL}/policy/privacy-policy")
+    page.wait_for_load_state("networkidle")
     expect(page.locator("body")).to_be_visible()
 
 
@@ -89,6 +94,7 @@ def test_privacy_policy_has_content(page: Page):
 
 def test_terms_of_service_page_loads(page: Page):
     page.goto(f"{BASE_URL}/policy/terms-of-service")
+    page.wait_for_load_state("networkidle")
     expect(page.locator("body")).to_be_visible()
 
 

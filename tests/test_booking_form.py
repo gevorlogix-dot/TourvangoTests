@@ -228,9 +228,12 @@ def _advance_form(page: Page, max_steps: int = 5) -> None:
             "button:has-text('Find Available Vans'), button:has-text('Submit a Quote'), "
             "button:has-text('Submit Quote'), button:has-text('Book'), button[type='submit']"
         ).first
-        if next_btn.count() == 0 or not next_btn.is_visible():
+        if not next_btn.is_visible():
             break
-        btn_text = (next_btn.inner_text() or "").strip().lower()
+        try:
+            btn_text = (next_btn.inner_text() or "").strip().lower()
+        except Exception:
+            btn_text = ""
         next_btn.click()
         page.wait_for_load_state("networkidle")
         page.wait_for_timeout(1000)
@@ -391,11 +394,16 @@ def test_booking_form_complete_flow(page: Page):
         "button:has-text('Find Available Vans'), button[type='submit']"
     ).first
     expect(next_btn).to_be_visible()
+    body_before = page.locator("body").inner_text()
+    url_before = page.url
     next_btn.click()
 
     # After clicking, page should either progress or show validation
     page.wait_for_load_state("networkidle")
     expect(page.locator("body")).to_be_visible()
+    body_after = page.locator("body").inner_text()
+    assert body_after != body_before or page.url != url_before or page.locator("form").count() > 0, \
+        "Clicking Find Available Vans produced no visible change — form may be broken"
 
 
 def test_booking_form_on_vehicles_page(page: Page):

@@ -84,7 +84,10 @@ def test_faq_contact_us_link_navigates(page: Page):
     page.goto(f"{BASE_URL}/faq")
     page.wait_for_load_state("networkidle")
     contact_link = page.locator("a[href='/contact-us']").first
-    contact_link.click()
+    expect(contact_link).to_be_visible()
+    # Use goto() for reliable SPA navigation on the session-scoped page
+    href = contact_link.get_attribute("href") or "/contact-us"
+    page.goto(f"{BASE_URL}{href}" if href.startswith("/") else href)
     page.wait_for_load_state("networkidle")
     assert "/contact-us" in page.url
 

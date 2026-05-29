@@ -49,7 +49,7 @@ def test_step1_fill_all_fields(page: Page):
     name = page.locator("input[name*='name' i], input[placeholder*='name' i]").first
     if name.is_visible():
         name.fill(NAME)
-        assert re.sub(r"\D", "", name.input_value()) or name.input_value() == NAME
+        assert name.input_value() == NAME, f"Name field should contain '{NAME}', got '{name.input_value()}'"
 
     # Phone
     phone = page.locator("input[type='tel'], input[name*='phone' i]").first
