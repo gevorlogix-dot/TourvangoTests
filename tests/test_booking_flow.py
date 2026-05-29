@@ -72,7 +72,7 @@ def test_step1_next_navigates_to_step2(page: Page):
     page.goto(BASE_URL)
     page.wait_for_load_state("networkidle")
 
-    # Fill available Step 1 fields
+    # Fill contact fields
     for sel, val in [
         ("input[name*='name' i], input[placeholder*='name' i]", NAME),
         ("input[type='tel'], input[name*='phone' i]", PHONE),
@@ -86,6 +86,40 @@ def test_step1_next_navigates_to_step2(page: Page):
             except Exception:
                 pass
 
+    # Fill pick-up location (required — form won't advance without it)
+    pickup = page.locator("input[placeholder='Pick-up Location']").first
+    if pickup.count() > 0 and pickup.is_visible():
+        try:
+            pickup.click()
+            page.wait_for_timeout(300)
+            page.keyboard.type("Los Angeles", delay=60)
+            page.wait_for_timeout(1200)
+            opt = page.locator("[role='option']").first
+            if opt.count() > 0 and opt.is_visible():
+                opt.click()
+            else:
+                page.keyboard.press("Escape")
+            page.wait_for_timeout(400)
+        except Exception:
+            pass
+
+    # Fill drop-off location (required)
+    dropoff = page.locator("input[placeholder='Drop-off Location']").first
+    if dropoff.count() > 0 and dropoff.is_visible():
+        try:
+            dropoff.click()
+            page.wait_for_timeout(300)
+            page.keyboard.type("Santa Monica", delay=60)
+            page.wait_for_timeout(1200)
+            opt = page.locator("[role='option']").first
+            if opt.count() > 0 and opt.is_visible():
+                opt.click()
+            else:
+                page.keyboard.press("Escape")
+            page.wait_for_timeout(400)
+        except Exception:
+            pass
+
     body_step1 = _body(page)
     url_step1  = page.url
 
@@ -96,7 +130,7 @@ def test_step1_next_navigates_to_step2(page: Page):
 
     # Wait for either a URL change or DOM update (SPA routing or widget step)
     try:
-        page.wait_for_url(lambda u: u != url_step1, timeout=5000)
+        page.wait_for_url(lambda u: u != url_step1, timeout=8000)
     except Exception:
         pass
     page.wait_for_load_state("networkidle")
@@ -122,7 +156,7 @@ def test_step2_shows_vehicle_or_contact_form(page: Page):
     page.goto(BASE_URL)
     page.wait_for_load_state("networkidle")
 
-    # Quick fill + click Next to reach Step 2
+    # Fill contact info
     for sel, val in [
         ("input[name*='name' i], input[placeholder*='name' i]", NAME),
         ("input[type='tel'], input[name*='phone' i]", PHONE),
@@ -135,9 +169,45 @@ def test_step2_shows_vehicle_or_contact_form(page: Page):
             except Exception:
                 pass
 
-    page.locator("button:has-text('Find Available Vans'), button[type='submit']").first.click()
+    # Fill pick-up location via MUI Autocomplete (required to reach Step 2)
+    pickup = page.locator("input[placeholder='Pick-up Location']").first
+    if pickup.count() > 0 and pickup.is_visible():
+        try:
+            pickup.click()
+            page.wait_for_timeout(300)
+            page.keyboard.type("Los Angeles", delay=60)
+            page.wait_for_timeout(1200)
+            opt = page.locator("[role='option']").first
+            if opt.count() > 0 and opt.is_visible():
+                opt.click()
+            else:
+                page.keyboard.press("Escape")
+            page.wait_for_timeout(400)
+        except Exception:
+            pass
+
+    # Fill drop-off location via MUI Autocomplete (required to reach Step 2)
+    dropoff = page.locator("input[placeholder='Drop-off Location']").first
+    if dropoff.count() > 0 and dropoff.is_visible():
+        try:
+            dropoff.click()
+            page.wait_for_timeout(300)
+            page.keyboard.type("Santa Monica", delay=60)
+            page.wait_for_timeout(1200)
+            opt = page.locator("[role='option']").first
+            if opt.count() > 0 and opt.is_visible():
+                opt.click()
+            else:
+                page.keyboard.press("Escape")
+            page.wait_for_timeout(400)
+        except Exception:
+            pass
+
+    next_btn = page.locator("button:has-text('Find Available Vans'), button[type='submit']").first
+    expect(next_btn).to_be_visible()
+    next_btn.click()
     page.wait_for_load_state("networkidle")
-    page.wait_for_timeout(1000)
+    page.wait_for_timeout(1500)
 
     body = _body(page)
 
@@ -158,7 +228,7 @@ def test_step2_to_step3_progression(page: Page):
     page.goto(BASE_URL)
     page.wait_for_load_state("networkidle")
 
-    # Fill Step 1
+    # Fill Step 1 — contact fields
     for sel, val in [
         ("input[name*='name' i], input[placeholder*='name' i]", NAME),
         ("input[type='tel'], input[name*='phone' i]", PHONE),
@@ -171,10 +241,28 @@ def test_step2_to_step3_progression(page: Page):
             except Exception:
                 pass
 
+    # Fill locations (required to advance past Step 1)
+    for placeholder, text in [("Pick-up Location", "Los Angeles"), ("Drop-off Location", "Santa Monica")]:
+        field = page.locator(f"input[placeholder='{placeholder}']").first
+        if field.count() > 0 and field.is_visible():
+            try:
+                field.click()
+                page.wait_for_timeout(300)
+                page.keyboard.type(text, delay=60)
+                page.wait_for_timeout(1200)
+                opt = page.locator("[role='option']").first
+                if opt.count() > 0 and opt.is_visible():
+                    opt.click()
+                else:
+                    page.keyboard.press("Escape")
+                page.wait_for_timeout(400)
+            except Exception:
+                pass
+
     # Step 1 → 2
     page.locator("button:has-text('Find Available Vans'), button[type='submit']").first.click()
     page.wait_for_load_state("networkidle")
-    page.wait_for_timeout(800)
+    page.wait_for_timeout(1500)
 
     body_step2 = _body(page)
     url_step2  = page.url
